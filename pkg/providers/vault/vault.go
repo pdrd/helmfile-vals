@@ -30,6 +30,7 @@ type provider struct {
 
 	Address    string
 	Namespace  string
+	KeyPrefix  string
 	Proto      string
 	Host       string
 	TokenEnv   string
@@ -59,6 +60,12 @@ func New(l *log.Logger, cfg api.StaticConfig) *provider {
 		}
 	}
 	p.Namespace = cfg.String("namespace")
+	p.KeyPrefix = cfg.String("key_prefix")
+	if p.KeyPrefix == "" {
+		if os.Getenv("VAULT_KEY_PREFIX") != "" {
+			p.KeyPrefix = os.Getenv("VAULT_KEY_PREFIX")
+		}
+	}
 	p.TokenEnv = cfg.String("token_env")
 	p.TokenFile = cfg.String("token_file")
 	p.AuthMethod = cfg.String("auth_method")
@@ -126,6 +133,10 @@ func (p *provider) GetStringMap(key string) (map[string]interface{}, error) {
 	cli, err := p.ensureClient()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create Vault Client: %v", err)
+	}
+
+	if p.KeyPrefix != "" && !strings.HasPrefix(key, "/") {
+		key = filepath.Join(p.KeyPrefix, key)
 	}
 
 	mountPath, v2, err := isKVv2(key, cli)
