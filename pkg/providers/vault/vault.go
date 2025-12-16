@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -40,6 +41,7 @@ type provider struct {
 	Username     string
 	PasswordEnv  string
 	PasswordFile string
+	KeyPrefix    string
 	Version      string
 }
 
@@ -103,6 +105,10 @@ func New(l *log.Logger, cfg api.StaticConfig) *provider {
 	if p.PasswordFile == "" {
 		p.PasswordFile = os.Getenv("VAULT_PASSWORD_FILE")
 	}
+	p.KeyPrefix = cfg.String("key_prefix")
+	if p.KeyPrefix == "" {
+		p.KeyPrefix = os.Getenv("VAULT_KEY_PREFIX")
+	}
 	p.Version = cfg.String("version")
 
 	return p
@@ -134,6 +140,10 @@ func (p *provider) GetStringMap(key string) (map[string]interface{}, error) {
 	cli, err := p.ensureClient()
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create Vault Client: %v", err)
+	}
+
+	if p.KeyPrefix != "" {
+		key = path.Join(p.KeyPrefix, key)
 	}
 
 	mountPath, v2, err := isKVv2(key, cli)
